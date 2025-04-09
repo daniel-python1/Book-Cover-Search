@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Search Results - Book Cover Image Search</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background-color: #f7f7f7;
+        }
+        header { 
+            margin-bottom: 20px; 
+            padding-bottom: 10px; 
+            border-bottom: 1px solid #ddd; 
+        }
+        nav { 
+            display: flex; 
+            gap: 20px; 
+            margin: 10px 0; 
+        }
+        nav a { 
+            text-decoration: none; 
+            color: #336699; 
+            font-weight: bold;
+        }
+        h1, h2 { 
+            color: #333; 
+        }
+        .search-container { 
+            margin: 20px 0; 
+            padding: 20px; 
+            background-color: white; 
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .search-form { 
+            display: flex; 
+            gap: 10px; 
+            margin-bottom: 10px; 
+        }
+        input[type="text"] { 
+            padding: 10px; 
+            flex-grow: 1; 
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        select, button { 
+            padding: 10px; 
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #336699;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #264d73;
+        }
+        .results-info {
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .results { 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 20px; 
+        }
+        .book-card {
+            width: 220px;
+            background-color: white;
+            border-radius: 5px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .book-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .book-card img { 
+            width: 100%; 
+            height: 300px; 
+            object-fit: cover;
+            border-bottom: 1px solid #eee;
+        }
+        .book-info { 
+            padding: 15px;
+        }
+        .book-info h3 {
+            margin-top: 0;
+            font-size: 16px;
+            height: 40px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        .book-info p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #555;
+        }
+        .color-sample {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            vertical-align: middle;
+            border: 1px solid #ddd;
+        }
+        .no-results {
+            padding: 30px;
+            background-color: white;
+            border-radius: 5px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        footer { 
+            margin-top: 40px; 
+            padding-top: 10px; 
+            border-top: 1px solid #ddd; 
+            color: #777; 
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Book Cover Image Search</h1>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/api">API</a>
+        </nav>
+    </header>
+    
+    <div class="search-container">
+        <form action="/search" method="get" class="search-form">
+            <input type="text" name="query" value="{{ query }}" placeholder="Enter search terms...">
+            <select name="model">
+                <option value="bm25" {% if model == 'bm25' %}selected{% endif %}>BM25</option>
+                <option value="vsm" {% if model == 'vsm' %}selected{% endif %}>Vector Space Model</option>
+                <option value="lm" {% if model == 'lm' %}selected{% endif %}>Language Model</option>
+            </select>
+            <button type="submit">Search</button>
+        </form>
+    </div>
+    
+    <div class="results-info">
+        <h2>Results for "{{ query }}"</h2>
+        <p>Found {{ books|length }} results using the {{ model }} search model</p>
+    </div>
+    
+    {% if books %}
+        <div class="results">
+            {% for book in books %}
+                <div class="book-card">
+                    <a href="{{ book.cover_url }}" target="_blank">
+                        <img src="/book_covers/{{ book.filename|basename|urlencode }}" alt="{{ book.title }}" 
+                        onerror="this.src='/static/placeholder.jpg'">
+                    </a>
+                    <div class="book-info">
+                        <h3>{{ book.title }}</h3>
+                        <p><strong>Author:</strong> {{ book.authors }}</p>
+                        <p><strong>Year:</strong> {{ book.year }}</p>
+                        <p><strong>Subject:</strong> {{ book.subject }}</p>
+                        {% if book.dominant_color %}
+                        <p><strong>Color:</strong> 
+                           <span class="color-sample" data-color="{{ book.dominant_color }}"></span>
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="no-results">
+            <h3>No results found for "{{ query }}"</h3>
+            <p>Try using different search terms or a different search model.</p>
+        </div>
+    {% endif %}
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const colorSamples = document.querySelectorAll('.color-sample[data-color]');
+            colorSamples.forEach(sample => {
+                const color = sample.getAttribute('data-color');
+                sample.style.backgroundColor = color;
+            });
+        });
+    </script>
+    
+    <footer>
+        <p>Book Cover Image Search Engine - Information Retrieval Assignment</p>
+    </footer>
+</body>
+</html>
