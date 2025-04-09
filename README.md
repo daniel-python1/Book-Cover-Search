@@ -22,3 +22,6 @@ This project is an **information retrieval** system designed to search for book 
 
    ```bash
    git clone https://github.com/daniel-python1/Book-Cover-Search.git
+
+2. Install Dependicies
+   pip install -r requirements.txt
