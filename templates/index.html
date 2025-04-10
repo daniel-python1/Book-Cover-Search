@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>FindurBookCover.com</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Results - Book Cover Image Search</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         :root {
             --primary-color: #2C3E50;     /* Deep blue-gray */
-            --secondary-color: #34495E;   /* Slightly lighter blue-gray */
+            --secondary-color: #3498DB;   /* Slightly lighter blue-gray */
             --accent-color: #3498DB;      /* Bright blue */
             --background-light: #ECF0F1;  /* Very light gray-blue */
             --text-dark: #2C3E50;         /* Dark text color */
@@ -63,7 +63,7 @@
         }
 
         nav a:hover { 
-            background-color: var(--accent-color);
+            background-color: #3498DB;
             color: var(--text-light);
         }
 
@@ -117,7 +117,7 @@
         }
 
         button {
-            background-color: var(--accent-color);
+            background-color: #3498DB;
             color: var(--text-light);
             cursor: pointer;
             font-weight: bold;
@@ -210,21 +210,21 @@
 </head>
 <body>
     <header>
-        <h1><i class="fas fa-book-open"></i>FindurBookCover</h1>
+        <h1><i class="fas fa-book-open" style="color: #3498DB;"></i>FindurBookCover.com</h1>
         <nav>
             <a href="/"><i class="fas fa-home"></i> Home</a>
-            <a href="/api"><i class="fas fa-code"></i> API</a>
+            <a href="https://github.com/daniel-python1/Book-Cover-Search" target="_blank">Source Code</a>
         </nav>
     </header>
     
     <div class="search-container">
         <h2>Search Book Covers</h2>
         <form action="/search" method="get" class="search-form">
-            <input type="text" name="query" placeholder="Enter search terms...">
+            <input type="text" name="query" value="{{ query }}" placeholder="Enter search terms...">
             <select name="model">
-                <option value="bm25">BM25</option>
-                <option value="vsm">Vector Space Model</option>
-                <option value="lm">Language Model</option>
+                <option value="bm25" {% if model == 'bm25' %}selected{% endif %}>BM25</option>
+                <option value="vsm" {% if model == 'vsm' %}selected{% endif %}>Vector Space Model</option>
+                <option value="lm" {% if model == 'lm' %}selected{% endif %}>Language Model</option>
             </select>
             <button type="submit"><i class="fas fa-search"></i> Search</button>
         </form>
@@ -249,7 +249,7 @@
         
         <div class="feature-card">
             <h3>Collection Info</h3>
-            <p>Our collection contains over 1,000 book covers gathered from Open Library across various genres and categories.</p>
+            <p>Our collection contains over 3,000 book covers gathered from Open Library across various genres and categories.</p>
             <p>Each image has been analyzed to extract its dominant color, providing additional search capabilities.</p>
         </div>
     </div>

@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>Search Results - Book Cover Image Search</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     <style>
         body { 
             font-family: Arial, sans-serif; 
@@ -14,7 +15,7 @@
         header { 
             margin-bottom: 20px; 
             padding-bottom: 10px; 
-            border-bottom: 1px solid #ddd; 
+            border-bottom: 2px solid #3498DB; /* Added blue border */
         }
         nav { 
             display: flex; 
@@ -23,7 +24,7 @@
         }
         nav a { 
             text-decoration: none; 
-            color: #336699; 
+            color: #3498DB; /* Blue links */
             font-weight: bold;
         }
         h1, h2 { 
@@ -44,22 +45,22 @@
         input[type="text"] { 
             padding: 10px; 
             flex-grow: 1; 
-            border: 1px solid #ddd;
+            border: 1px solid #3498DB; /* Blue border for search input */
             border-radius: 4px;
         }
         select, button { 
             padding: 10px; 
-            border: 1px solid #ddd;
+            border: 1px solid #0066cc; /* Blue border for select and buttons */
             border-radius: 4px;
         }
         button {
-            background-color: #336699;
+            background-color: #3498DB; /* Blue button */
             color: white;
             cursor: pointer;
             font-weight: bold;
         }
         button:hover {
-            background-color: #264d73;
+            background-color: #004d99; /* Darker blue on hover */
         }
         .results-info {
             background-color: white;
@@ -100,6 +101,7 @@
             height: 40px;
             overflow: hidden;
             margin-bottom: 10px;
+            color: #0066cc; /* Blue title */
         }
         .book-info p {
             margin: 5px 0;
@@ -122,20 +124,47 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         footer { 
-            margin-top: 40px; 
+            margin-top: 700px; 
             padding-top: 10px; 
             border-top: 1px solid #ddd; 
             color: #777; 
             text-align: center;
         }
+
+        .pagination {
+
+            margin-top: 30px;
+            margin-bottom: 20px;
+        }
+
+        /* Pagination buttons */
+        .pagination a {
+            padding: 10px 20px;
+            background-color: #0066cc;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 5px;
+        }
+        .pagination a:hover {
+            background-color: #004d99; /* Darker blue on hover */
+        }
+        .prev-button, .next-button {
+            background-color: #0066cc;
+            color: white;
+        }
     </style>
 </head>
 <body>
     <header>
-        <h1>Book Cover Image Search</h1>
+        <h1>
+            <!-- Adding the open book icon next to the title -->
+            <i class="fas fa-book-open" style="color: #3498DB;"></i> 
+            FindurBookCover.com
+        </h1>
         <nav>
-            <a href="/">Home</a>
-            <a href="/api">API</a>
+            <a href="/"><i class="fas fa-home"></i> Home</a>
+            <a href="https://github.com/daniel-python1/Book-Cover-Search" target="_blank">Source Code</a>
         </nav>
     </header>
     
@@ -177,6 +206,14 @@
                     </div>
                 </div>
             {% endfor %}
+        </div>
+        <!-- Pagination Controls -->
+        <div class="pagination">
+            {% if page > 1 %}
+                <a href="/search?query={{ query }}&model={{ model }}&page={{ page - 1 }}" class="prev-button">Previous</a>
+            {% endif %}
+            <span>Page {{ page }}</span>
+            <a href="/search?query={{ query }}&model={{ model }}&page={{ page + 1 }}" class="next-button">Next</a>
         </div>
     {% else %}
         <div class="no-results">
