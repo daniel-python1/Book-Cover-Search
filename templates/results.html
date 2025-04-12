@@ -183,6 +183,13 @@
     <div class="results-info">
         <h2>Results for "{{ query }}"</h2>
         <p>Found {{ books|length }} results using the {{ model }} search model</p>
+        {% if filters %}
+    <p><strong>Applied Filters:</strong>
+        {% for label, value in filters.items() %}
+            {{ label }}: {{ value }}{% if not loop.last %}, {% endif %}
+        {% endfor %}
+    </p>
+{% endif %}
     </div>
     
     {% if books %}

@@ -6,77 +6,84 @@ from urllib.parse import quote, unquote
 from spellchecker import SpellChecker
 import re
 
-#Mapping similar words 
-genre_dict = {
-    "fantasy": ["fantasy", "fantasy books", "magical", "magic", "wizards", "dragons", "fairy tale", "mythology", "elves", "mystical", "sorcery"],
-    "science_fiction": ["science fiction", "sci fi", "space opera", "futuristic", "aliens", "robots", "space exploration", "time travel", "cyberpunk", "dystopian", "post-apocalyptic", "artificial intelligence"],
-    "romance": ["romance", "romantic", "love", "love story", "relationship", "romantic books", "romantic fiction", "passion", "couple", "dating", "affair", "heartbreak"],
-    "mystery": ["mystery", "mystery books", "detective", "crime", "whodunit", "suspense", "murder", "investigation", "crime novel", "detective story", "mystery thriller"],
-    "horror": ["horror", "horror books", "scary", "spooky", "thriller", "haunted", "ghost", "paranormal", "supernatural", "psychological horror", "dark", "monsters"],
-    "historical_fiction": ["historical fiction", "historical", "period drama", "historical books", "historical novel", "historical romance", "war novels", "medieval", "victorian", "renaissance", "ancient"],
-    "young_adult": ["young adult", "ya", "teen", "teen fiction", "teen books", "adolescent", "young readers", "coming of age", "teen drama", "young adult fiction"],
-    "adventure": ["adventure", "adventure books", "action", "exploration", "journey", "quest", "survival", "explorer", "expedition", "adventure novels", "action books"],
-    "thriller": ["thriller", "thriller books", "suspense", "action", "crime thriller", "psychological thriller", "spy", "espionage", "political thriller", "mystery thriller", "action thriller"],
-    "poetry": ["poetry", "poem", "poems", "verse", "rhymes", "poet", "spoken word", "rhyme", "lyrics"],
-    "biography": ["biography", "biographies", "memoir", "autobiography", "life story", "life history", "personal story", "real life", "real life stories", "true story"],
-    "autobiography": ["autobiography", "self biography", "memoir", "personal story", "self-written biography", "life story"],
-    "children": ["children", "kids", "children's books", "children books", "kids books", "juvenile", "kids fiction", "children fiction", "story books", "picture books"],
-    "drama": ["drama", "plays", "stage", "theater", "performance", "dramatic", "drama books", "acting", "stage play"],
-    "classic_literature": ["classic literature", "classics", "classic books", "timeless books", "vintage literature", "literary classics", "old literature"],
-    "sports": ["sports", "sports books", "athletics", "sport books", "team sports", "individual sports", "sports fiction", "extreme sports", "soccer books", "basketball books"],
-    "technology": ["technology", "tech", "science and technology", "tech books", "innovation", "gadgets", "electronics", "computing", "IT", "technology books", "future tech"],
-    "philosophy": ["philosophy", "philosophical", "ethics", "logic", "philosophical books", "thinking", "metaphysics", "existentialism", "plato", "socratic", "philosophy books"],
-    "psychology": ["psychology", "psychological", "mental health", "behavior", "psychology books", "cognitive science", "neuroscience", "therapy", "human behavior"],
-    "religion": ["religion", "spirituality", "faith", "bible", "holy books", "christianity", "buddhism", "islam", "religious", "spiritual", "catholic", "holy scripture"],
-    "education": ["education", "learning", "teaching", "study", "academic", "school books", "educational books", "college", "university", "educational resources", "education books"]
-}
-
-def normalize_genre(query, genre_dict):
-    """
-    Normalizes the query by mapping it to a genre if a known genre term is found.
-    Returns the genre name if found, or None if no genre matches.
-    """
-    query = query.lower()
-
-    # Check if the query matches any genre terms
-    for genre, synonyms in genre_dict.items():
-        for synonym in synonyms:
-            if synonym.lower() == query:
-                return genre
-            elif synonym.lower() in query:
-                return genre  # Return the genre if a part of the query matches
-    return None  # Return None if no genre matches
-
-
+# Import the search engine and genre_dict from the unified module
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from engine.unified_search_engine import UnifiedSearchEngine, genre_dict
 
 def correct_query(query):
-    query = re.sub(r'\s+', ' ', query).strip()
-    query = re.sub(r'(.)\1{2,}', r'\1\1', query)
+    print(f"RAW BEFORE SANITIZATION: {repr(query)}")
+    query = re.sub(r'\s+', ' ', query).strip().replace('\n', '').replace('\r', '')
     spell = SpellChecker()
+
+    # Get all genre keywords
+    genre_keywords = set()
+    for syn_list in genre_dict.values():
+        for syn in syn_list:
+            genre_keywords.add(syn.lower())
+
+    # First protect multi-word genre terms to prevent spell-checking them individually
+    protected_terms = {}
+    for phrase in sorted(genre_keywords, key=lambda x: -len(x)):
+        if " " in phrase:
+            # Create a unique placeholder for each phrase
+            placeholder = f"__GENRE_{len(protected_terms)}__"
+            protected_terms[placeholder] = phrase
+            pattern = re.compile(r'\b' + re.escape(phrase) + r'\b', re.IGNORECASE)
+            query = pattern.sub(placeholder, query)
+
     words = query.split()
-    corrected_words = [spell.correction(word) for word in words]
+    corrected_words = []
 
-    # Combine the corrected words back into a string
-    corrected_query = ' '.join(corrected_words)
+    for word in words:
+        # Skip correcting placeholders for genre terms
+        if word in protected_terms:
+            corrected_words.append(protected_terms[word])
+            continue
 
-    return corrected_query
+        # Skip correcting years and numbers
+        if re.match(r'^(18|19|20)\d{2}s?$', word.lower()) or word.lower().isdigit():
+            print(f"Skipping year/number: {word}")
+            corrected_words.append(word)
+            continue
 
+        # Skip correcting single-word genre terms
+        if word.lower() in genre_keywords:
+            corrected_words.append(word)
+            continue
 
-# Add the project root to the Python path to import the search engine
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from engine.unified_search_engine import UnifiedSearchEngine
+        # Handle "science fiction" or "sci fi" formats specially  
+        if word.lower() in ['science', 'sci']:
+            next_index = words.index(word) + 1
+            if next_index < len(words) and words[next_index].lower() in ['fiction', 'fi']:
+                corrected_words.append(word)
+                continue
+
+        # Skip correcting colors
+        color_keywords = ['red', 'blue', 'green', 'yellow', 'black', 'white', 'purple', 'orange', 'pink', 'brown', 'grey', 'gray']
+        if word.lower() in color_keywords:
+            corrected_words.append(word)
+            continue
+
+        # Reduce repeated characters (like "boooook" to "book")
+        if word.isalpha():
+            word = re.sub(r'(.)\1{2,}', r'\1\1', word)
+
+        # Apply spell correction for non-genre, non-year, non-color terms
+        corrected = spell.correction(word)
+        if corrected and corrected != word:
+            print(f"Correcting: {word} → {corrected}")
+        corrected_words.append(corrected if corrected else word)
+
+    final = ' '.join(corrected_words)
+    print(f"FINAL QUERY: {final}")
+    return final
 
 app = Flask(__name__)
 
-# Initialize the search engine
 index_dir = "data/index"
 image_dir = "book_covers"
 search_engine = UnifiedSearchEngine(index_dir, image_dir)
 
-# Load enhanced metadata CSV for reference
-df = pd.read_csv('C:/Users/comer/OneDrive - Dublin City University/Desktop/Web Scrape/data/index/enhanced_book_metadata.csv')
-
-# Add basename filter for templates
 @app.template_filter('basename')
 def basename_filter(path):
     return os.path.basename(path) if path else ''
@@ -94,59 +101,64 @@ def index():
 @app.route('/search')
 def search():
     query = request.args.get('query', '')
+    print(f"RAW QUERY RECEIVED: '{query}'")
+    term_mappings = {
+        "90s": "1990s",
+        "80s": "1980s",
+        "70s": "1970s",
+        "60s": "1960s"
+    }
+    
+    # Apply mappings
+    for old_term, new_term in term_mappings.items():
+        # Only replace full words, not parts of words
+        query = re.sub(r'\b' + re.escape(old_term) + r'\b', new_term, query, flags=re.IGNORECASE)
+    
+    if query != request.args.get('query', ''):
+        print(f"QUERY MAPPED TO: '{query}'")
+    
     model = request.args.get('model', 'bm25')
-    
-    # Get the current page from the URL query parameters, default to 1 if not provided
-    page = int(request.args.get('page', 1))  # Default to page 1
-    results_per_page = 30  # Number of results per page
-    
+    page = int(request.args.get('page', 1))
+    results_per_page = 30
+    if not query:
+        return render_template('results.html', books=[], query='')
+    model = request.args.get('model', 'bm25')
+    page = int(request.args.get('page', 1))
+    results_per_page = 30
     if not query:
         return render_template('results.html', books=[], query='')
 
-    # Correct spelling before using the query in search
-    genre = normalize_genre(query, genre_dict)
-
-    if not genre:
-        corrected_query = correct_query(query)
-    else:
-        corrected_query = query 
-    # Step 1: Calculate `top_k` based on the page number
-    top_k = results_per_page * page  # This fetches the appropriate number of results for the page
-
-    if genre:
-        results = search_engine.search(genre, model=model, top_k=top_k)
-    else:
-        results = search_engine.search(corrected_query, model=model, top_k=top_k)
-
+    # Process the query with spell checking
+    corrected_query = correct_query(query)
     
-    # Pagination: Only show results for the current page
+    # Get results using the updated search engine
+    results = search_engine.search(corrected_query, model=model, top_k=results_per_page*page)
+    
+    # If no results were found and the query was corrected, try the original query as a fallback
+    if not results and corrected_query != query:
+        print(f"No results with corrected query. Trying original query: '{query}'")
+        results = search_engine.search(query, model=model, top_k=results_per_page*page)
+
     start_index = (page - 1) * results_per_page
     end_index = start_index + results_per_page
-    page_results = results[start_index:end_index]  # Get the results for the current page
-    
-    # Return JSON if requested (for AJAX)
+    page_results = results[start_index:end_index]
+
     if request.args.get('format') == 'json':
         return jsonify(results)
-    
-    # Otherwise render the results page
-    return render_template('results.html', books=page_results, query=corrected_query, model=model, page=page)
 
-# Serve book cover images
+    return render_template('results.html', books=page_results, query=query, model=model, page=page)
+
 @app.route('/book_covers/<path:filename>')
 def serve_book_cover(filename):
     try:
-        # First try the direct filename
         return send_from_directory('book_covers', filename)
     except:
-        # If that fails, try URL decoding the filename
         try:
             decoded_filename = unquote(filename)
             return send_from_directory('book_covers', decoded_filename)
         except:
-            # If that still fails, return a placeholder
             return send_from_directory('static', 'placeholder.jpg')
 
-# Add a route for API documentation
 @app.route('/api')
 def api_docs():
     return render_template('api.html')

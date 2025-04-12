@@ -220,7 +220,7 @@
     <div class="search-container">
         <h2>Search Book Covers</h2>
         <form action="/search" method="get" class="search-form">
-            <input type="text" name="query" value="{{ query }}" placeholder="Enter search terms...">
+            <input type="text" name="query" value="{{ query }}" placeholder="Enter search terms..." spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off"/>
             <select name="model">
                 <option value="bm25" {% if model == 'bm25' %}selected{% endif %}>BM25</option>
                 <option value="vsm" {% if model == 'vsm' %}selected{% endif %}>Vector Space Model</option>
