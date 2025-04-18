@@ -36,10 +36,117 @@ class UnifiedSearchEngine:
     def __init__(self, index_dir, image_dir):
         print("Initializing UnifiedSearchEngine...")
         self.genre_dict = genre_dict
+        self.index_dir = index_dir
+        self.image_dir = image_dir
+
+        # Step 1: Enhance metadata if not already done
+        csv_path = os.path.join(index_dir, "enhanced_book_metadata.csv")
+
+        if not os.path.exists(csv_path):
+            print("Enhancing metadata with dominant color and surrogate text...")
+
+            original_csv_path = os.path.join(index_dir, "book_metadata.csv")
+            df = pd.read_csv(original_csv_path)
+
+            df['doc_id'] = df.index.astype(str)
+
+            def get_dominant_color_internal(filename):
+                try:
+                    base_filename = os.path.basename(filename)
+                    full_path = os.path.normpath(os.path.join(self.image_dir, base_filename))
+                    print(f"Attempting to process: {full_path}")
+
+                    if not os.path.exists(full_path):
+                        from urllib.parse import unquote
+                        decoded_filename = unquote(base_filename)
+                        full_path = os.path.normpath(os.path.join(self.image_dir, decoded_filename))
+                        if not os.path.exists(full_path):
+                            print(f"Image not found: {full_path}")
+                            return "unknown"
+
+                    image = cv2.imread(full_path)
+                    if image is None:
+                        print(f"Failed to read image: {full_path}")
+                        return "error_reading"
+
+                    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                    image = image.reshape((-1, 3))
+                    image = np.float32(image)
+                    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+                    _, labels, centers = cv2.kmeans(image, 1, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+                    color = centers[0].astype(int)
+                    return f"rgb({color[0]}, {color[1]}, {color[2]})"
+                except Exception as e:
+                    print(f"Error processing image {filename}: {e}")
+                    return "error"
+
+            df['dominant_color'] = df['filename'].apply(get_dominant_color_internal)
+
+            df['surrogate_text'] = df.apply(
+                lambda row: f"{row['title']} {row['authors']} {row['subject']} {row['year']} {row['dominant_color']}",
+                axis=1
+            )
+
+            df.to_csv(csv_path, index=False)
+
+            documents = {}
+            for _, row in df.iterrows():
+                doc_id = row['doc_id']
+                text = row['surrogate_text']
+                documents[doc_id] = process_text(text)
+
+            with open(os.path.join(index_dir, 'documents.json'), 'w') as f:
+                json.dump(documents, f)
+
+            print(f"Enhanced metadata and processed {len(documents)} documents for indexing.")
+
+        # Proceed with standard engine init
         self.inverted_index = load_json(os.path.join(index_dir, "inverted_index.json"))
         self.doc_lengths = load_json(os.path.join(index_dir, "doc_lengths.json"))
         self.term_frequencies = load_json(os.path.join(index_dir, "term_frequencies.json"))
         self.metadata = load_json(os.path.join(index_dir, "metadata.json"))
+
+        self.color_keywords = ['red', 'blue', 'green', 'yellow', 'black', 'white', 'purple', 'orange', 'pink', 'brown', 'grey', 'gray']
+
+        self.common_words = ['book', 'books', 'cover', 'covers', 'with', 'a', 'the', 'of', 'in', 'on', 'and', 'or', 'has', 'have', 'find', 'me', 'show', 'get', 'color', 'colors', 'colored']
+
+        self.decade_patterns = {
+            r'90s\b': (1990, 1999),
+            r'80s\b': (1980, 1989),
+            r'70s\b': (1970, 1979),
+            r'60s\b': (1960, 1969),
+            r'50s\b': (1950, 1959),
+            r'2000s\b': (2000, 2009),
+            r'2010s\b': (2010, 2019),
+            r'2020s\b': (2020, 2029),
+            r'\bnineties\b': (1990, 1999),
+            r'\beighties\b': (1980, 1989),
+            r'\bseventies\b': (1970, 1979),
+            r'\bsixties\b': (1960, 1969),
+            r'\bfifties\b': (1950, 1959)
+        }
+
+        total_docs = self.metadata.get("total_docs", len(self.doc_lengths))
+        print(f"Total documents: {total_docs}")
+
+        print("Initializing BM25 model...")
+        self.bm25 = BM25(self.inverted_index, self.doc_lengths, self.term_frequencies, total_docs)
+
+        self._vsm = None
+        self._lm = None
+
+        print("Loading book metadata...")
+        self.book_data = pd.read_csv(csv_path)
+        self.book_data["doc_id"] = self.book_data.index.astype(str)
+
+        if "dominant_color" not in self.book_data.columns:
+            print("Annotating images with dominant color...")
+            self.book_data["dominant_color"] = self.book_data["filename"].apply(self.get_dominant_color)
+
+        print("Normalizing genre data...")
+        self.book_data["normalized_subject"] = self.book_data["subject"].apply(self._normalize_genre)
+
+        print("UnifiedSearchEngine initialized successfully.")
         
         # Define color keywords for later use
         self.color_keywords = ['red', 'blue', 'green', 'yellow', 'black', 'white', 'purple', 'orange', 'pink', 'brown', 'grey', 'gray']
