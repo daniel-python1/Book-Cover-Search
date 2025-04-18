@@ -15,13 +15,13 @@ def correct_query(query):
     query = re.sub(r'\s+', ' ', query).strip().replace('\n', '').replace('\r', '')
     spell = SpellChecker()
 
-    # Get all genre keywords
+
     genre_keywords = set()
     for syn_list in genre_dict.values():
         for syn in syn_list:
             genre_keywords.add(syn.lower())
 
-    # First protect multi-word genre terms to prevent spell-checking them individually
+   
     protected_terms = {}
     for phrase in sorted(genre_keywords, key=lambda x: -len(x)):
         if " " in phrase:
@@ -46,12 +46,12 @@ def correct_query(query):
             corrected_words.append(word)
             continue
 
-        # Skip correcting single-word genre terms
+        
         if word.lower() in genre_keywords:
             corrected_words.append(word)
             continue
 
-        # Handle "science fiction" or "sci fi" formats specially  
+    
         if word.lower() in ['science', 'sci']:
             next_index = words.index(word) + 1
             if next_index < len(words) and words[next_index].lower() in ['fiction', 'fi']:
@@ -64,7 +64,7 @@ def correct_query(query):
             corrected_words.append(word)
             continue
 
-        # Reduce repeated characters (like "boooook" to "book")
+       
         if word.isalpha():
             word = re.sub(r'(.)\1{2,}', r'\1\1', word)
 
@@ -109,19 +109,14 @@ def search():
         "60s": "1960s"
     }
     
-    # Apply mappings
+    
     for old_term, new_term in term_mappings.items():
         # Only replace full words, not parts of words
         query = re.sub(r'\b' + re.escape(old_term) + r'\b', new_term, query, flags=re.IGNORECASE)
     
     if query != request.args.get('query', ''):
         print(f"QUERY MAPPED TO: '{query}'")
-    
-    model = request.args.get('model', 'bm25')
-    page = int(request.args.get('page', 1))
-    results_per_page = 30
-    if not query:
-        return render_template('results.html', books=[], query='')
+
     model = request.args.get('model', 'bm25')
     page = int(request.args.get('page', 1))
     results_per_page = 30

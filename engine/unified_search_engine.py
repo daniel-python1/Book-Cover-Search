@@ -7,6 +7,7 @@ from engine.bm25 import BM25
 from engine.vsm import VectorSpaceModel
 from engine.language_model import DirichletLanguageModel
 from engine.utils import load_json, process_text
+import json
 
 genre_dict = {
     "fantasy": ["fantasy", "fantasy books", "magical", "magic", "wizards", "dragons", "fairy tale", "mythology", "elves", "mystical", "sorcery"],
@@ -147,57 +148,6 @@ class UnifiedSearchEngine:
         self.book_data["normalized_subject"] = self.book_data["subject"].apply(self._normalize_genre)
 
         print("UnifiedSearchEngine initialized successfully.")
-        
-        # Define color keywords for later use
-        self.color_keywords = ['red', 'blue', 'green', 'yellow', 'black', 'white', 'purple', 'orange', 'pink', 'brown', 'grey', 'gray']
-        
-        # Common words that should be ignored when determining if a query is filter-only
-        self.common_words = ['book', 'books', 'cover', 'covers', 'with', 'a', 'the', 'of', 'in', 'on', 'and', 'or', 'has', 'have', 'find', 'me', 'show', 'get', 'color', 'colors', 'colored']
-
-        # Define decade patterns and their year ranges
-        self.decade_patterns = {
-            r'90s\b': (1990, 1999),
-            r'80s\b': (1980, 1989),
-            r'70s\b': (1970, 1979),
-            r'60s\b': (1960, 1969),
-            r'50s\b': (1950, 1959),
-            r'2000s\b': (2000, 2009),
-            r'2010s\b': (2010, 2019),
-            r'2020s\b': (2020, 2029),
-            r'\bnineties\b': (1990, 1999),
-            r'\beighties\b': (1980, 1989),
-            r'\bseventies\b': (1970, 1979),
-            r'\bsixties\b': (1960, 1969),
-            r'\bfifties\b': (1950, 1959)
-        }
-
-        total_docs = self.metadata.get("total_docs", len(self.doc_lengths))
-        print(f"Total documents: {total_docs}")
-
-        # Initialize only BM25 by default (as it's the most commonly used)
-        # Other models will be lazily initialized when needed
-        print("Initializing BM25 model...")
-        self.bm25 = BM25(self.inverted_index, self.doc_lengths, self.term_frequencies, total_docs)
-        
-        # Create placeholders for other models that will be lazily initialized
-        self._vsm = None
-        self._lm = None
-
-        print("Loading book metadata...")
-        csv_path = os.path.join(index_dir, "enhanced_book_metadata.csv")
-        self.book_data = pd.read_csv(csv_path)
-        self.book_data["doc_id"] = self.book_data.index.astype(str)
-
-        self.image_dir = image_dir
-        if "dominant_color" not in self.book_data.columns:
-            print("Annotating images with dominant color...")
-            self.book_data["dominant_color"] = self.book_data["filename"].apply(self.get_dominant_color)
-        
-        # Add normalized subject for better genre matching
-        print("Normalizing genre data...")
-        self.book_data["normalized_subject"] = self.book_data["subject"].apply(self._normalize_genre)
-        
-        print("UnifiedSearchEngine initialized successfully.")
     
     @property
     def vsm(self):
@@ -239,38 +189,37 @@ class UnifiedSearchEngine:
                 
             r, g, b = map(int, match.groups())
             
-            # Improved color detection with more forgiving thresholds
-            # RED detection - various ways to detect red
+            # Improved color detection
             if (r > 150 and g < 120 and b < 120) or (r > 180 and r > g*1.5 and r > b*1.5):
                 return "red"
-            # GREEN detection
+            # GREEN 
             elif (g > 150 and r < 120 and b < 120) or (g > 180 and g > r*1.5 and g > b*1.5):
                 return "green"
-            # BLUE detection
+            # BLUE 
             elif (b > 120 and r < 120 and g < 120) or (b > 180 and b > r*1.5 and b > g*1.5) or (b > r and b > g and b > 150):
                 return "blue"
-            # YELLOW detection 
+            # YELLOW 
             elif r > 180 and g > 180 and b < 100:
                 return "yellow"
-            # PURPLE detection
+            # PURPLE 
             elif r > 130 and b > 130 and g < 100:
                 return "purple"
-            # BLACK detection
+            # BLACK 
             elif r < 60 and g < 60 and b < 60:
                 return "black"
-            # WHITE detection
+            # WHITE 
             elif r > 200 and g > 200 and b > 200:
                 return "white"
-            # ORANGE detection
+            # ORANGE 
             elif r > 200 and g > 100 and g < 180 and b < 100:
                 return "orange"
-            # PINK detection
+            # PINK 
             elif r > 200 and g < 180 and b > 150:
                 return "pink"
-            # BROWN detection
+            # BROWN 
             elif r > 120 and r < 200 and g > 60 and g < 150 and b < 100:
                 return "brown"
-            # GREY detection
+            # GREY 
             elif abs(r - g) < 30 and abs(g - b) < 30 and abs(r - b) < 30 and r > 60 and r < 200:
                 return "grey"
             else:
@@ -313,7 +262,7 @@ class UnifiedSearchEngine:
     def parse_filters(self, query_string):
         lower_query = query_string.lower()
         
-        # Find color terms
+     
         found_colors = [color for color in self.color_keywords if re.search(r'\b' + re.escape(color) + r'\b', lower_query)]
         
         # Find year - check for exact years and decades
@@ -444,13 +393,13 @@ class UnifiedSearchEngine:
             genre_filtered = df[df["normalized_subject"] == normalized_genre]
             print(f"Found {len(genre_filtered)} books with genre '{normalized_genre}'")
             
-            # If no books match the genre, we still want to continue with other filters
+            
             if len(genre_filtered) > 0:
                 df = genre_filtered
             else:
                 print(f"No books found with genre '{genre}'. Continuing with other filters.")
         
-        # Apply color filter if specified
+        
         if colors and len(colors) > 0:
             # Create a new dataframe for color matches to avoid modifying df during iteration
             color_matches = []
@@ -470,20 +419,20 @@ class UnifiedSearchEngine:
                     if any(color_label == user_color for user_color in colors):
                         color_matches.append(book)
             
-            # If we found color matches, update our dataframe
+        
             if color_matches:
                 df = pd.DataFrame(color_matches)
                 print(f"After color filter: {len(df)} books match colors {colors}")
             else:
                 print(f"No books matched the specified colors: {colors}")
-                return []  # No books match the color filter
+                return [] 
         
-        # Apply exact year filter if specified
+        
         if year_info and "exact_year" in year_info:
             exact_year = year_info["exact_year"]
             print(f"Looking for books from exactly year {exact_year}")
             
-            # Use pandas filtering for better performance
+            
             df["year_numeric"] = pd.to_numeric(df["year"], errors="coerce")
             df = df[df["year_numeric"] == exact_year]
             
@@ -506,13 +455,13 @@ class UnifiedSearchEngine:
         return results[:top_k]
 
     def search(self, query_string, model="bm25", top_k=20):
-        # Special case for "90s" - always use direct decade filtering
+        
         lower_query = query_string.lower().strip()
         if lower_query == "90s":
             print(f"Special handling for '90s' decade search")
             return self._direct_filter_search(None, None, {"decade": (1990, 1999)}, top_k)
         
-        # Special case for other single-word decade queries
+        #
         for decade_pattern, decade_range in self.decade_patterns.items():
             cleaned_pattern = decade_pattern.replace(r'\b', '')
             if lower_query == cleaned_pattern:
@@ -532,20 +481,18 @@ class UnifiedSearchEngine:
         
         # 1. Parse filters - extract colors, year, and genre
         colors, year_info, parsed_genre = self.parse_filters(query_string)
-        
-        # Always use direct filtering for decade searches
+    
+    
         if year_info and "decade" in year_info:
             print("Decade search detected - using direct filtering")
             return self._direct_filter_search(parsed_genre, colors, year_info, top_k)
         
-        # 2. Check if this is a filters-only query (just colors, genre, year with no other search terms)
-        # For any query with at least one filter, let's use direct filtering if there are no meaningful terms left
+
         if colors or parsed_genre or year_info:
             if self._is_filters_only_query(query_string, parsed_genre, colors, year_info):
                 return self._direct_filter_search(parsed_genre, colors, year_info, top_k)
         
-        # 3. For queries with search terms plus filters, use the search model
-        # First remove filter terms from the query to get the actual search terms
+      
         cleaned_query = query_string
         
         # Remove genre terms
